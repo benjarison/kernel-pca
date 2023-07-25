@@ -36,13 +36,21 @@ impl <T: Float + ComplexField + RealField> KernelPca<T> {
         KernelPca { kernel, embed_dim }
     }
 
-    pub fn apply(&self, x: &Vec<Vec<T>>) -> Result<Vec<Vec<T>>, PcaError> {
-        self.validate(x)?;
+    ///
+    /// Applies Kernel PCA to the provided input data, outputting
+    /// the projected embeddings
+    /// 
+    /// # Arguments
+    /// 
+    /// * `data` - The input data, as a vector of feature vectors
+    /// 
+    pub fn apply(&self, data: &Vec<Vec<T>>) -> Result<Vec<Vec<T>>, PcaError> {
+        self.validate(data)?;
         // The linear kernel is equivalent to vanilla PCA, so let's
         // bypass the construction of the kernel matrix and just use SVD
         if let Kernel::Linear = self.kernel {
-            let z = center_data(x)?;
-            let svd = z.svd(true, false);
+            let x = center_data(data)?;
+            let svd = x.svd(true, false);
             let sigma = DMatrix::from_diagonal(&svd.singular_values.rows(0, self.embed_dim));
             let embeddings = svd
             .u
@@ -55,16 +63,17 @@ impl <T: Float + ComplexField + RealField> KernelPca<T> {
                 .collect()
             ).collect())
         }
-        let k = self.form_kernel_matrix(x);
+        // Otherwise construct the (centered) kernel matrix and use eigen decomposition
+        let k = self.form_kernel_matrix(data);
         let k_center = center_kernel_matrix(&k)?;
         let factorization = k_center.symmetric_eigen();
         let indices = sort_indices_descending(factorization.eigenvalues.as_slice());
-        let mut embeddings = vec![vec![T::zero(); self.embed_dim]; x.len()];
+        let mut embeddings = vec![vec![T::zero(); self.embed_dim]; data.len()];
         for j in 0..self.embed_dim {
             let ind = indices[j];
             let eigenvector = factorization.eigenvectors.column(ind);
             let eigenvalue_sqrt = Float::sqrt(factorization.eigenvalues[ind]);
-            for i in 0..x.len() {
+            for i in 0..data.len() {
                 embeddings[i][j] = eigenvector[i] * eigenvalue_sqrt;
             }
         }
