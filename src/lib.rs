@@ -4,9 +4,8 @@ mod error;
 use nalgebra::{DMatrix, RowDVector, ComplexField, RealField, Scalar, Field};
 use num::Float;
 
-use kernel::Kernel;
-
-use error::PcaError;
+pub use kernel::Kernel;
+pub use error::PcaError;
 
 
 ///
