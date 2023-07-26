@@ -81,7 +81,7 @@ fn compute_rational_quadratic<T: Float>(a: &[T], b: &[T], gamma: T, alpha: T) ->
         let diff = a - b;
         sum + diff * diff
     });
-    return (T::one() + gamma * ssd).powf(-alpha);
+    return (T::one() + gamma / alpha * ssd).powf(-alpha);
 }
 
 // Specialized squared exponential computation
