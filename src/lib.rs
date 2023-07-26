@@ -44,26 +44,35 @@ impl <T: Float + ComplexField + RealField> KernelPca<T> {
     /// 
     pub fn apply(&self, data: &Vec<Vec<T>>) -> Result<Vec<Vec<T>>, PcaError> {
         self.validate(data)?;
+        // For the linear kernel, we just use vanilla PCA and avoid the kernel matrix
         let x = match self.kernel {
             Kernel::Linear => center_data(data)?,
             _ => center_kernel_matrix(&self.form_kernel_matrix(data))?
         };
         let svd = x.svd(true, false);
         let sv_selection = svd.singular_values.rows(0, self.embed_dim);
+        // Remember we don't need to take the square root for the linear case
         let sigma = match self.kernel {
             Kernel::Linear => DMatrix::from_diagonal(&sv_selection),
             _ => DMatrix::from_diagonal(&sv_selection.map(|v| Float::sqrt(v)))
         };
-        let embeddings = svd
+        let u = svd
         .u
-        .ok_or(PcaError::computation_failure("SVD Failure"))?
-        .columns(0, self.embed_dim) * sigma;
+        .ok_or(PcaError::computation_failure("SVD Failure"))?;
+        let signs = determine_signs(&u, self.embed_dim);
+        let u_selection = u.columns(0, self.embed_dim);
+        let embeddings = u_selection * sigma;
         return Ok(
             embeddings
             .row_iter()
-            .map(|row| row.iter().map(|&val| val)
+            .map(|row| {
+                row.iter()
+                .enumerate()
+                .map(|(j, &val)| val * signs[j])
+                .collect()
+            })
             .collect()
-        ).collect())
+        )
     }
 
     fn form_kernel_matrix(&self, x: &Vec<Vec<T>>) -> DMatrix<T> {
@@ -134,4 +143,26 @@ fn center_data<T: Float + Scalar + Field>(x: &Vec<Vec<T>>) -> Result<DMatrix<T>,
             .map(|(&v, &m)| v - m)
         )
     }).collect::<Vec<_>>()))
+}
+
+fn determine_signs<T: Float>(u: &DMatrix<T>, dim: usize) -> Vec<T> {
+    u.columns(0, dim).column_iter().map(|column| {
+        let mut max_abs_elem = T::zero();
+        let mut flip = false;
+        for &val in column.iter() {
+            if val.abs() > max_abs_elem {
+                max_abs_elem = val.abs();
+                if val < T::zero() {
+                    flip = true;
+                } else {
+                    flip = false;
+                }
+            }
+        }
+        if flip {
+            T::one().neg()
+        } else {
+            T::one()
+        }
+    }).collect()
 }
