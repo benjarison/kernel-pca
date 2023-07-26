@@ -1,6 +1,5 @@
 pub mod kernel;
 mod error;
-mod util;
 
 use nalgebra::{DMatrix, RowDVector, ComplexField, RealField, Scalar, Field};
 use num::Float;
@@ -8,7 +7,6 @@ use num::Float;
 use kernel::Kernel;
 
 use error::PcaError;
-use util::sort_indices_descending;
 
 
 ///
@@ -46,38 +44,26 @@ impl <T: Float + ComplexField + RealField> KernelPca<T> {
     /// 
     pub fn apply(&self, data: &Vec<Vec<T>>) -> Result<Vec<Vec<T>>, PcaError> {
         self.validate(data)?;
-        // The linear kernel is equivalent to vanilla PCA, so let's
-        // bypass the construction of the kernel matrix and just use SVD
-        if let Kernel::Linear = self.kernel {
-            let x = center_data(data)?;
-            let svd = x.svd(true, false);
-            let sigma = DMatrix::from_diagonal(&svd.singular_values.rows(0, self.embed_dim));
-            let embeddings = svd
-            .u
-            .ok_or(PcaError::computation_failure("SVD Failure"))?
-            .columns(0, self.embed_dim) * sigma;
-            return Ok(
-                embeddings
-                .row_iter()
-                .map(|row| row.iter().map(|&val| val)
-                .collect()
-            ).collect())
-        }
-        // Otherwise construct the (centered) kernel matrix and use eigen decomposition
-        let k = self.form_kernel_matrix(data);
-        let k_center = center_kernel_matrix(&k)?;
-        let factorization = k_center.symmetric_eigen();
-        let indices = sort_indices_descending(factorization.eigenvalues.as_slice());
-        let mut embeddings = vec![vec![T::zero(); self.embed_dim]; data.len()];
-        for j in 0..self.embed_dim {
-            let ind = indices[j];
-            let eigenvector = factorization.eigenvectors.column(ind);
-            let eigenvalue_sqrt = Float::sqrt(factorization.eigenvalues[ind]);
-            for i in 0..data.len() {
-                embeddings[i][j] = eigenvector[i] * eigenvalue_sqrt;
-            }
-        }
-        return Ok(embeddings);
+        let x = match self.kernel {
+            Kernel::Linear => center_data(data)?,
+            _ => center_kernel_matrix(&self.form_kernel_matrix(data))?
+        };
+        let svd = x.svd(true, false);
+        let sv_selection = svd.singular_values.rows(0, self.embed_dim);
+        let sigma = match self.kernel {
+            Kernel::Linear => DMatrix::from_diagonal(&sv_selection),
+            _ => DMatrix::from_diagonal(&sv_selection.map(|v| Float::sqrt(v)))
+        };
+        let embeddings = svd
+        .u
+        .ok_or(PcaError::computation_failure("SVD Failure"))?
+        .columns(0, self.embed_dim) * sigma;
+        return Ok(
+            embeddings
+            .row_iter()
+            .map(|row| row.iter().map(|&val| val)
+            .collect()
+        ).collect())
     }
 
     fn form_kernel_matrix(&self, x: &Vec<Vec<T>>) -> DMatrix<T> {
