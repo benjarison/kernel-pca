@@ -1,3 +1,5 @@
+use std::fmt;
+
 
 ///
 /// Defines various errors
@@ -45,5 +47,16 @@ impl PcaError {
     /// 
     pub fn invalid_data(message: impl Into<String>) -> PcaError {
         PcaError::InvalidData(message.into())
+    }
+}
+
+impl fmt::Display for PcaError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let message = match self {
+            Self::ComputationFailure(message) => message,
+            Self::InvalidConfig(message) => message,
+            Self::InvalidData(message) => message
+        };
+        write!(f, "{}", message)
     }
 }
