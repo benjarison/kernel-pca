@@ -7,7 +7,7 @@ use num::Float;
 pub enum Kernel<T: Float> {
     /// Linear kernel of the form x * x' (Note that this is equivalent to standard PCA)
     Linear,
-    /// Rational Quadratic kernel of the form (1 + gamma * (x - x')^2)^(-alpha)
+    /// Rational Quadratic kernel of the form (1 + (gamma / alpha) * (x - x')^2)^(-alpha)
     RationalQuadratic { gamma: T, alpha: T },
     /// Squared Exponential (or RBF) kernel of the form exp(-gamma * (x - x')^2)
     SquaredExponential { gamma: T }
