@@ -5,7 +5,7 @@ use std::fmt;
 /// Defines various errors
 /// 
 #[derive(Clone, Debug)]
-pub enum PcaError {
+pub enum KPcaError {
     /// Indicates a failure encountered during Kernel PCA computation
     ComputationFailure(String),
     /// Indicates an invalid Kernel PCA configuration
@@ -14,7 +14,7 @@ pub enum PcaError {
     InvalidData(String)
 }
 
-impl PcaError {
+impl KPcaError {
 
     ///
     /// Constructs a new ComputationFailure instance
@@ -23,8 +23,8 @@ impl PcaError {
     /// 
     /// * `message` - The error message
     /// 
-    pub fn computation_failure(message: impl Into<String>) -> PcaError {
-        PcaError::ComputationFailure(message.into())
+    pub fn computation_failure(message: impl Into<String>) -> KPcaError {
+        KPcaError::ComputationFailure(message.into())
     }
 
     ///
@@ -34,8 +34,8 @@ impl PcaError {
     /// 
     /// * `message` - The error message
     /// 
-    pub fn invalid_config(message: impl Into<String>) -> PcaError {
-        PcaError::InvalidConfig(message.into())
+    pub fn invalid_config(message: impl Into<String>) -> KPcaError {
+        KPcaError::InvalidConfig(message.into())
     }
 
     ///
@@ -45,12 +45,12 @@ impl PcaError {
     /// 
     /// * `message` - The error message
     /// 
-    pub fn invalid_data(message: impl Into<String>) -> PcaError {
-        PcaError::InvalidData(message.into())
+    pub fn invalid_data(message: impl Into<String>) -> KPcaError {
+        KPcaError::InvalidData(message.into())
     }
 }
 
-impl fmt::Display for PcaError {
+impl fmt::Display for KPcaError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let message = match self {
             Self::ComputationFailure(message) => message,

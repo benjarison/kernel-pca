@@ -5,7 +5,7 @@ use nalgebra::{DMatrix, RowDVector, ComplexField, RealField, Scalar, Field};
 use num::Float;
 
 pub use kernel::Kernel;
-pub use error::PcaError;
+pub use error::KPcaError;
 
 
 ///
@@ -41,7 +41,7 @@ impl <T: Float + ComplexField + RealField> KernelPca<T> {
     /// 
     /// * `data` - The input data, as a vector of feature vectors
     /// 
-    pub fn apply(&self, data: &Vec<Vec<T>>) -> Result<Vec<Vec<T>>, PcaError> {
+    pub fn apply(&self, data: &Vec<Vec<T>>) -> Result<Vec<Vec<T>>, KPcaError> {
         self.validate(data)?;
         // For the linear kernel, we just use vanilla PCA and avoid the kernel matrix
         let x = match self.kernel {
@@ -57,7 +57,7 @@ impl <T: Float + ComplexField + RealField> KernelPca<T> {
         };
         let u = svd
         .u
-        .ok_or(PcaError::computation_failure("SVD Failure"))?;
+        .ok_or(KPcaError::computation_failure("SVD Failure"))?;
         let signs = determine_signs(&u, self.embed_dim);
         let u_selection = u.columns(0, self.embed_dim);
         let embeddings = u_selection * sigma;
@@ -88,42 +88,42 @@ impl <T: Float + ComplexField + RealField> KernelPca<T> {
         return k;
     }
 
-    fn validate(&self, data: &Vec<Vec<T>>) -> Result<(), PcaError> {
+    fn validate(&self, data: &Vec<Vec<T>>) -> Result<(), KPcaError> {
         if data.len() == 0 {
-            return Err(PcaError::invalid_data("Input data has no records"));
+            return Err(KPcaError::invalid_data("Input data has no records"));
         }
         let dim = data[0].len();
         if dim == 0 {
-            return Err(PcaError::invalid_data("Input data has a dimensionality of zero"));
+            return Err(KPcaError::invalid_data("Input data has a dimensionality of zero"));
         }
         for row in data {
             if row.len() != dim {
-                return Err(PcaError::invalid_data("Input data has inconsistent dimensionality across records"));
+                return Err(KPcaError::invalid_data("Input data has inconsistent dimensionality across records"));
             }
         }
         if self.embed_dim == 0 {
-            return Err(PcaError::invalid_config("Embedding dimension must be positive"));
+            return Err(KPcaError::invalid_config("Embedding dimension must be positive"));
         }
         if self.embed_dim > dim {
-            return Err(PcaError::invalid_config("Embeddind dimension must be <= data dimension"));
+            return Err(KPcaError::invalid_config("Embeddind dimension must be <= data dimension"));
         }
         Ok(())
     }
 }
 
 // Center the kernel matrix for kernel PCA
-fn center_kernel_matrix<T: Float + Scalar + Field>(k: &DMatrix<T>) -> Result<DMatrix<T>, PcaError> {
+fn center_kernel_matrix<T: Float + Scalar + Field>(k: &DMatrix<T>) -> Result<DMatrix<T>, KPcaError> {
     let dim = k.nrows();
-    let tdim = T::from(dim).ok_or(PcaError::computation_failure("Unable to convert dimension to float"))?;
+    let tdim = T::from(dim).ok_or(KPcaError::computation_failure("Unable to convert dimension to float"))?;
     let q = DMatrix::from_element(dim, dim, T::one() / tdim);
     let r = DMatrix::identity(dim, dim) - q;
     return Ok((&r * k) * &r);
 }
 
 // Center the input data for standard PCA
-fn center_data<T: Float + Scalar + Field>(x: &Vec<Vec<T>>) -> Result<DMatrix<T>, PcaError> {
+fn center_data<T: Float + Scalar + Field>(x: &Vec<Vec<T>>) -> Result<DMatrix<T>, KPcaError> {
     let dim = x[0].len();
-    let n = T::from(x.len()).ok_or(PcaError::computation_failure("Unable to convert data length to float"))?;
+    let n = T::from(x.len()).ok_or(KPcaError::computation_failure("Unable to convert data length to float"))?;
     let mut means = vec![T::zero(); dim];
     for row in x {
         for (j, &val) in row.iter().enumerate() {
